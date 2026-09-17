@@ -1,7 +1,6 @@
 """Asynchronous tools set."""
 
 import typing as _t
-from functools import wraps
 from inspect import signature as _inspect_signature
 from logging import getLogger as _get_logger
 from operator import itemgetter
@@ -13,15 +12,6 @@ from anyio import create_task_group as all_subtasks_awaited
 logger = _get_logger(__name__)
 
 _TaskOutcome = _t.Tuple[int, _t.Any, _t.Optional[Exception]]
-
-
-def auto_cleanup_aio_tasks(async_func):
-    """Ensure all subtasks finish."""
-    @wraps(async_func)
-    async def async_func_wrapper(*args, **kwargs):
-        async with all_subtasks_awaited():
-            return await async_func(*args, **kwargs)
-    return async_func_wrapper
 
 
 async def _send_task_res_to_q(res_q, task_id, aio_task) -> None:
