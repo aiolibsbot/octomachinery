@@ -1,8 +1,12 @@
 """Utility helpers for CLI."""
 
+from __future__ import annotations
+
+import collections.abc as _c
 import contextlib
 import itertools
 import json
+import typing as _t
 from uuid import UUID, uuid4
 
 import multidict
@@ -10,7 +14,20 @@ import multidict
 import yaml
 
 
-def _probe_yaml(event_file_fd):
+_HttpHeaderStubs = _t.Sequence[_t.Mapping[str, str]]
+"""A sequence of single-pair mappings, as stored in an event VCR."""
+
+_DecodedHttpHeaders = _t.Union[_HttpHeaderStubs, _t.Mapping[str, str]]
+"""Whatever the headers document in a VCR decodes into, valid or not."""
+
+_EventStub = _t.Mapping[str, object]
+"""A GitHub event payload, as stored in an event VCR."""
+
+_EventFileContents = _t.Tuple[_DecodedHttpHeaders, _EventStub]
+"""Whatever a single event VCR file decodes into."""
+
+
+def _probe_yaml(event_file_fd: _t.IO[str]) -> _EventFileContents:
     try:
         http_headers, event, extra = itertools.islice(
             itertools.chain(
@@ -37,7 +54,7 @@ def _probe_yaml(event_file_fd):
     return http_headers, event
 
 
-def _probe_jsonl(event_file_fd):
+def _probe_jsonl(event_file_fd: _t.IO[str]) -> _EventFileContents:
     event = None
 
     first_line = event_file_fd.readline()
@@ -60,7 +77,7 @@ def _probe_jsonl(event_file_fd):
     return http_headers, event
 
 
-def _probe_json(event_file_fd):
+def _probe_json(event_file_fd: _t.IO[str]) -> _EventFileContents:
     event = json.load(event_file_fd)
     event_file_fd.seek(0)
 
@@ -72,7 +89,7 @@ def _probe_json(event_file_fd):
     return http_headers, event
 
 
-def _parse_fd_content(event_file_fd):
+def _parse_fd_content(event_file_fd: _t.IO[str]) -> _EventFileContents:
     """Guess file content type and read event with HTTP headers."""
     for event_reader in _probe_yaml, _probe_jsonl, _probe_json:
         with contextlib.suppress(ValueError):
@@ -84,21 +101,29 @@ def _parse_fd_content(event_file_fd):
     )
 
 
-def _transform_http_headers_list_to_multidict(headers):
-    if isinstance(headers, dict):
+def _transform_http_headers_list_to_multidict(
+        headers: _DecodedHttpHeaders,
+) -> multidict.CIMultiDict[str]:
+    if isinstance(headers, _c.Mapping):
         raise ValueError(
             'Headers must be a sequence of mappings because keys can repeat',
         )
     return multidict.CIMultiDict(next(iter(h.items()), ()) for h in headers)
 
 
-def parse_event_stub_from_fd(event_file_fd):
+def parse_event_stub_from_fd(
+        event_file_fd: _t.IO[str],
+) -> _t.Tuple[multidict.CIMultiDict[str], _EventStub]:
     """Read event with HTTP headers as CIMultiDict instance."""
     http_headers, event = _parse_fd_content(event_file_fd)
     return _transform_http_headers_list_to_multidict(http_headers), event
 
 
-def validate_http_headers(headers):
+# NOTE: The values are `typing.Any` rather than `object` because the
+# NOTE: body below consumes two of them as strings without narrowing.
+# NOTE: Adding `isinstance()` guards would change which exception
+# NOTE: escapes, so it is left to a follow-up change.
+def validate_http_headers(headers: _t.Mapping[str, _t.Any]) -> None:
     """Verify that HTTP headers look sane."""
     if headers['content-type'] != 'application/json':
         raise ValueError("Content-Type must be 'application/json'")
@@ -118,7 +143,9 @@ def validate_http_headers(headers):
         raise ValueError('X-GitHub-Event must be a string')
 
 
-def augment_http_headers(headers):
+def augment_http_headers(
+        headers: multidict.CIMultiDict[str],
+) -> multidict.CIMultiDict[str]:
     """Add fake HTTP headers for the missing positions."""
     fake_headers = make_http_headers_from_event(headers['x-github-event'])
 
@@ -134,7 +161,9 @@ def augment_http_headers(headers):
     return headers
 
 
-def make_http_headers_from_event(event_name):
+def make_http_headers_from_event(
+        event_name: str,
+) -> multidict.CIMultiDict[str]:
     """Generate fake HTTP headers with the given event name."""
     return multidict.CIMultiDict({
         'content-type': 'application/json',

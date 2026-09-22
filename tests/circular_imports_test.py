@@ -11,6 +11,8 @@ import os
 import pkgutil
 import subprocess
 import sys
+import types as _tps
+import typing as _t
 from itertools import chain
 from pathlib import Path
 
@@ -19,7 +21,7 @@ import pytest
 import octomachinery
 
 
-def _find_all_importables(pkg):
+def _find_all_importables(pkg: _tps.ModuleType) -> _t.List[str]:
     """Find all importables in the project.
 
     Return them in order.
@@ -34,7 +36,9 @@ def _find_all_importables(pkg):
     )
 
 
-def _discover_path_importables(pkg_pth, pkg_name):
+def _discover_path_importables(
+        pkg_pth: Path, pkg_name: str,
+) -> _t.Iterator[str]:
     """Yield all importables under a given path and package."""
     for dir_path, _d, file_names in os.walk(pkg_pth):
         pkg_dir_path = Path(dir_path)
@@ -59,7 +63,7 @@ def _discover_path_importables(pkg_pth, pkg_name):
     'import_path',
     _find_all_importables(octomachinery),
 )
-def test_no_warnings(import_path):
+def test_no_warnings(import_path: str) -> None:
     """Verify that exploding importables doesn't explode.
 
     This is seeking for any import errors including ones caused

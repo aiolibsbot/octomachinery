@@ -1,5 +1,6 @@
 """Shared fixtures for tests."""
 import asyncio
+import typing as _t
 
 import pytest
 
@@ -39,7 +40,7 @@ def rsa_private_key_bytes(rsa_private_key) -> bytes:
 
 
 @pytest.fixture(autouse=True)
-def _current_event_loop():
+def _current_event_loop() -> _t.Iterator[None]:
     """Keep a current event loop set for the duration of each test.
 
     ``anyio`` v1 deliberately grabs the current event loop through
