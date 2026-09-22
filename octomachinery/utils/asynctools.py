@@ -1,5 +1,6 @@
 """Asynchronous tools set."""
 
+import typing as _t
 from functools import wraps
 from inspect import signature as _inspect_signature
 from logging import getLogger as _get_logger
@@ -21,7 +22,7 @@ def auto_cleanup_aio_tasks(async_func):
     return async_func_wrapper
 
 
-async def _send_task_res_to_q(res_q, task_id, aio_task):
+async def _send_task_res_to_q(res_q, task_id, aio_task) -> None:
     """Await task and put its result to the queue."""
     try:
         task_res = await aio_task
@@ -33,7 +34,9 @@ async def _send_task_res_to_q(res_q, task_id, aio_task):
         await res_q.put((task_id, task_res))
 
 
-async def _aio_gather_iter_pairs(*aio_tasks):
+async def _aio_gather_iter_pairs(
+        *aio_tasks,
+) -> _t.AsyncIterator[_t.Tuple[int, object]]:
     """Spawn async tasks and yield with pairs of ids with results."""
     aio_tasks_num = len(aio_tasks)
     task_res_q = create_queue(aio_tasks_num)
