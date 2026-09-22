@@ -1,6 +1,7 @@
 """Test for asynchronous operations utility functions."""
 
 import logging
+import typing as _t
 
 import anyio
 
@@ -90,9 +91,9 @@ async def test_try_await_bypass_errors():
 
 
 @pytest.mark.anyio
-async def test_aio_gather_keeps_order():
+async def test_aio_gather_keeps_order() -> None:
     """Test that results are returned in the order of the passed tasks."""
-    async def sleep_then_return(delay, val):
+    async def sleep_then_return(delay: float, val: str) -> str:
         await anyio.sleep(delay)
         return val
 
@@ -105,13 +106,13 @@ async def test_aio_gather_keeps_order():
 
 
 @pytest.mark.anyio
-async def test_aio_gather_no_tasks():
+async def test_aio_gather_no_tasks() -> None:
     """Test that gathering nothing returns an empty tuple."""
     assert await aio_gather() == ()
 
 
 @pytest.mark.anyio
-async def test_aio_gather_reraises_unwrapped_and_cancels_the_rest():
+async def test_aio_gather_reraises_unwrapped_and_cancels_the_rest() -> None:
     """Test that a task failure is propagated as is.
 
     It must not be wrapped into an exception group so that the callers
@@ -119,10 +120,10 @@ async def test_aio_gather_reraises_unwrapped_and_cancels_the_rest():
     """
     was_cancelled = anyio.Event()
 
-    async def break_callback():
+    async def break_callback() -> _t.NoReturn:
         raise LookupError('It is broken')
 
-    async def wait_forever():
+    async def wait_forever() -> None:
         try:
             await anyio.sleep(float('inf'))
         except anyio.get_cancelled_exc_class():
@@ -136,9 +137,11 @@ async def test_aio_gather_reraises_unwrapped_and_cancels_the_rest():
 
 
 @pytest.mark.anyio
-async def test_aio_gather_logs_the_leftover_failures(caplog):
+async def test_aio_gather_logs_the_leftover_failures(
+        caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test that the failures that aren't re-raised are logged."""
-    async def break_callback(exc_msg):
+    async def break_callback(exc_msg: str) -> _t.NoReturn:
         raise LookupError(exc_msg)
 
     with caplog.at_level(logging.ERROR), pytest.raises(LookupError):

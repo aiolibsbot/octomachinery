@@ -24,7 +24,7 @@ IPV4_LOCALHOST = '127.0.0.1'
 
 
 @pytest.fixture
-def ephemeral_port_tcp_sock() -> socket:
+def ephemeral_port_tcp_sock() -> _t.Iterator[socket]:
     """Initialize an ephemeral TCP socket."""
     tcp_sock = get_unused_port_socket(IPV4_LOCALHOST)
     try:
@@ -191,9 +191,11 @@ async def test_ping_response(send_webhook_event, github_app_id):
 )
 @pytest.mark.anyio
 async def test_run_forever_propagates_startup_failures_as_is(
-        monkeypatch, octomachinery_config, octomachinery_event_routers,
-        startup_exc_type,
-):
+        monkeypatch: pytest.MonkeyPatch,
+        octomachinery_config: BotAppConfig,
+        octomachinery_event_routers: _t.FrozenSet[OctomachineryRouterBase],
+        startup_exc_type: _t.Type[BaseException],
+) -> None:
     """Test that a start-up failure reaches the caller unwrapped.
 
     The CLI runner recognizes the signal-driven shutdown by catching
@@ -201,7 +203,9 @@ async def test_run_forever_propagates_startup_failures_as_is(
     server raises must keep its own type on the way out instead of
     getting wrapped into an exception group.
     """
-    async def _fail_to_prepare_github_app(_github_app):
+    async def _fail_to_prepare_github_app(
+            _github_app: GitHubApp,
+    ) -> _t.NoReturn:
         raise startup_exc_type('Nope')
 
     monkeypatch.setattr(

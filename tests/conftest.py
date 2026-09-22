@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.serialization import (
 
 
 @pytest.fixture
-def anyio_backend():
+def anyio_backend() -> str:
     """Pin the async test backend to asyncio.
 
     ``aiohttp`` only supports asyncio. The ``anyio`` pytest plugin's

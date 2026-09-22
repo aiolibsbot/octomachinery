@@ -7,14 +7,21 @@ from operator import itemgetter
 
 from anyio import EndOfStream, WouldBlock, create_memory_object_stream
 from anyio import create_task_group as all_subtasks_awaited
+from anyio.streams.memory import (
+    MemoryObjectReceiveStream, MemoryObjectSendStream,
+)
 
 
 logger = _get_logger(__name__)
 
-_TaskOutcome = _t.Tuple[int, _t.Any, _t.Optional[Exception]]
+_TaskOutcome = _t.Tuple[int, _t.Any, _t.Union[Exception, None]]
 
 
-async def _send_task_res_to_q(res_q, task_id, aio_task) -> None:
+async def _send_task_res_to_q(
+        res_q: MemoryObjectSendStream[_TaskOutcome],
+        task_id: int,
+        aio_task: _t.Awaitable[_t.Any],
+) -> None:
     """Await task and send its outcome to the stream."""
     try:
         task_res = await aio_task
@@ -24,7 +31,9 @@ async def _send_task_res_to_q(res_q, task_id, aio_task) -> None:
         res_q.send_nowait((task_id, task_res, None))
 
 
-def _log_leftover_task_failures(res_q) -> None:
+def _log_leftover_task_failures(
+        res_q: MemoryObjectReceiveStream[_TaskOutcome],
+) -> None:
     """Log the task failures that won't be re-raised."""
     while True:
         try:
@@ -44,8 +53,8 @@ def _log_leftover_task_failures(res_q) -> None:
 
 
 async def _aio_gather_iter_pairs(
-        *aio_tasks,
-) -> _t.AsyncIterator[_t.Tuple[int, object]]:
+        *aio_tasks: _t.Awaitable[_t.Any],
+) -> _t.AsyncIterator[_t.Tuple[int, _t.Any]]:
     """Spawn async tasks and yield with pairs of ids with results.
 
     The first task failure cancels the rest of the tasks. It is then
